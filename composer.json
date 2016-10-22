@@ -1,0 +1,23 @@
+{
+    "name": "lyoshenka/php-triplesec",
+    "description": "PHP port of Keybase's triplesec encryption",
+    "keywords": [
+      "keybase",
+      "triplesec",
+      "encryption",
+      "cryptography"
+    ],
+    "require": {
+        "php": ">=5.4",
+        "ext-libsodium": ">=1.0",
+        "ext-mcrypt": ">=2.4",
+        "ext-scrypt": ">=1.0"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Alex Grintsvayg",
+            "email": "alex@grin.io"
+        }
+    ]
+}
