@@ -75,7 +75,7 @@ class TripleSec
 
   protected static function sha3hmac($data, $key)
   {
-    $hashFn = function ($data) { return bb\Sha3\Sha3::hash($data, 512, true); };
+    $hashFn = function ($data) { return bb\Sha3\Sha3::keccak($data, 512, true); };
     return static::hmac($data, $key, $hashFn, static::SHA3_BLOCK_SIZE);
   }
 

@@ -6,6 +6,10 @@ namespace bb\Sha3;
 
 final class Sha3
 {
+    const KECCAK_SUFFIX = 0x01;
+    const SHA3_SUFFIX = 0x06;
+    const SHAKE_SUFFIX = 0x1f;
+
     const KECCAK_ROUNDS = 24;
     private static $keccakf_rotc = [1, 3, 6, 10, 15, 21, 28, 36, 45, 55, 2, 14, 27, 41, 56, 8, 25, 43, 62, 18, 39, 61, 20, 44];
     private static $keccakf_piln = [10, 7, 11, 17, 18, 3, 5, 16, 8, 21, 24, 4, 15, 23, 19, 13, 12,2, 20, 14, 22, 9, 6, 1];
@@ -316,7 +320,7 @@ final class Sha3
         throw new \Exception('Sha3 self test failed!');
     }
 
-    private static function keccak($in_raw, $capacity, $outputlength, $suffix, $raw_output)
+    private static function doKeccak($in_raw, $capacity, $outputlength, $suffix, $raw_output)
     {
         self::selfTest();
 
@@ -327,13 +331,22 @@ final class Sha3
         return self::keccak32($in_raw, $capacity, $outputlength, $suffix, $raw_output);
     }
 
-    public static function hash($in, $mdlen, $raw_output = false)
+    public static function keccak($in, $mdlen, $raw_output = false)
     {
         if( ! in_array($mdlen, [224, 256, 384, 512], true)) {
             throw new \Exception('Unsupported Sha3 Hash output size.');
         }
 
-        return self::keccak($in, $mdlen, $mdlen, 0x06, $raw_output);
+        return self::doKeccak($in, $mdlen, $mdlen, self::KECCAK_SUFFIX, $raw_output);
+    }
+
+    public static function sha3($in, $mdlen, $raw_output = false)
+    {
+        if( ! in_array($mdlen, [224, 256, 384, 512], true)) {
+            throw new \Exception('Unsupported Sha3 Hash output size.');
+        }
+
+        return self::doKeccak($in, $mdlen, $mdlen, self::SHA3_SUFFIX, $raw_output);
     }
 
     public static function shake($in, $security_level, $outlen, $raw_output = false)
@@ -342,7 +355,7 @@ final class Sha3
             throw new \Exception('Unsupported Sha3 Shake security level.');
         }
 
-        return self::keccak($in, $security_level, $outlen, 0x1f, $raw_output);
+        return self::doKeccak($in, $security_level, $outlen, self::SHAKE_SUFFIX, $raw_output);
     }
 
     /**
