@@ -10,6 +10,9 @@ foreach (['libsodium', 'scrypt', 'mcrypt'] as $extension)
 
 require_once __DIR__ . '/SHA3.class.php';
 
+class TripleSecException extends Exception{}
+class TripleSecInvalidKeyException extends Exception{}
+
 class TripleSec
 {
   const MAGIC_BYTES = [0x1c, 0x94, 0xd7, 0xde];
@@ -168,12 +171,12 @@ class TripleSec
 
     if (strlen($ciphertext) < $minLength)
     {
-      throw new Exception('input is too short');
+      throw new TripleSecException('input is too short');
     }
 
     if (substr($ciphertext, 0, strlen($header)) !== $header)
     {
-      throw new Exception('invalid magic byte or version');
+      throw new TripleSecException('invalid magic byte or version');
     }
     $ciphertext = substr($ciphertext, strlen($header));
 
@@ -191,11 +194,11 @@ class TripleSec
     $toMac = $header . $salt . $ciphertext;
     if (!static::compare($mac1, static::sha512hmac($toMac, $keys['sha512'])))
     {
-      throw new Exception('sha512 hmac does not match');
+      throw new TripleSecInvalidKeyException('sha512 hmac does not match');
     }
     if (!static::compare($mac2, static::sha3hmac($toMac, $keys['sha3'])))
     {
-      throw new Exception('sha3 hmac does not match');
+      throw new TripleSecInvalidKeyException('sha3 hmac does not match');
     }
 
     return static::xsalsa20Decrypt(static::twofishDecrypt(static::aesDecrypt($ciphertext, $keys['aes']), $keys['twofish']),
