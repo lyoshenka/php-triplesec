@@ -1,6 +1,6 @@
 <?php
 
-foreach (array_merge(glob(__DIR__.'/../ext/req_check.php'), [__DIR__.'/../src/RngInterface.class.php'], glob(__DIR__.'/../src/*.php')) as $file)
+foreach (array_merge(glob(__DIR__.'/../ext/req_check.php'), [__DIR__.'/../src/RngInterface.php'], glob(__DIR__.'/../src/*.php')) as $file)
 {
   require_once $file;
 }
