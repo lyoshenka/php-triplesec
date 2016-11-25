@@ -19,5 +19,10 @@
             "name": "Alex Grintsvayg",
             "email": "alex@grin.io"
         }
-    ]
+    ],
+    "autoload": {
+        "psr-4": {
+            "lyoshenka\\": "src/"
+          }
+    }
 }

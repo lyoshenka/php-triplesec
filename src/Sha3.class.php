@@ -1,8 +1,8 @@
 <?php
 
-// https://github.com/0xbb/php-sha3
+// copied from https://github.com/0xbb/php-sha3, with slight modifications
 
-namespace bb\Sha3;
+namespace lyoshenka;
 
 final class Sha3
 {

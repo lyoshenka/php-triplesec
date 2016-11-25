@@ -1,17 +1,6 @@
 <?php
 
-foreach (['libsodium', 'scrypt', 'mcrypt'] as $extension)
-{
-  if (!extension_loaded($extension))
-  {
-    throw new RuntimeException($extension . ' extension required');
-  }
-}
-
-require_once __DIR__ . '/SHA3.class.php';
-
-class TripleSecException extends Exception{}
-class TripleSecInvalidKeyException extends Exception{}
+namespace lyoshenka;
 
 class TripleSec
 {
@@ -47,7 +36,7 @@ class TripleSec
     'xsalsa20' => self::XSALSA20_KEY_SIZE,
   ];
 
-  protected static function compare($str1, $str2)
+  protected static function compare(string $str1, string $str2)
   {
     return hash_equals($str1, $str2);
   }
@@ -78,48 +67,40 @@ class TripleSec
 
   protected static function sha3hmac($data, $key)
   {
-    $hashFn = function ($data) { return bb\Sha3\Sha3::keccak($data, 512, true); };
+    $hashFn = function ($data) { return Sha3::keccak($data, 512, true); };
     return static::hmac($data, $key, $hashFn, static::SHA3_BLOCK_SIZE);
   }
 
-  protected static function getRandomBytes($numBytes)
+  protected static function xsalsa20Encrypt(string $str, string $key, string $iv): string
   {
-    return \Sodium\randombytes_buf($numBytes);
-  }
-
-  protected static function xsalsa20Encrypt($str, $key)
-  {
-    $iv = static::getRandomBytes(static::XSALSA20_IV_SIZE);
     return $iv . \Sodium\crypto_stream_xor($str, $iv, $key);
   }
 
-  protected static function xsalsa20Decrypt($str, $key)
+  protected static function xsalsa20Decrypt(string $str, string $key): string
   {
     $iv  = substr($str, 0, static::XSALSA20_IV_SIZE);
     $str = substr($str, static::XSALSA20_IV_SIZE);
     return \Sodium\crypto_stream_xor($str, $iv, $key);
   }
 
-  protected static function twofishEncrypt($str, $key)
+  protected static function twofishEncrypt(string $str, string $key, string $iv): string
   {
-    $iv = static::getRandomBytes(static::TWOFISH_IV_SIZE);
     return $iv . mcrypt_encrypt(MCRYPT_TWOFISH, $key, $str, 'ctr', $iv);
   }
 
-  protected static function twofishDecrypt($str, $key)
+  protected static function twofishDecrypt(string $str, string $key): string
   {
     $iv  = substr($str, 0, static::TWOFISH_IV_SIZE);
     $str = substr($str, static::TWOFISH_IV_SIZE);
     return mcrypt_decrypt(MCRYPT_TWOFISH, $key, $str, 'ctr', $iv);
   }
 
-  protected static function aesEncrypt($str, $key)
+  protected static function aesEncrypt(string $str, string $key, string $iv): string
   {
-    $iv = static::getRandomBytes(static::AES_IV_SIZE);
     return $iv . mcrypt_encrypt(MCRYPT_RIJNDAEL_128, $key, $str, 'ctr', $iv);
   }
 
-  protected static function aesDecrypt($str, $key)
+  protected static function aesDecrypt(string $str, string $key): string
   {
     $iv  = substr($str, 0, static::AES_IV_SIZE);
     $str = substr($str, static::AES_IV_SIZE);
@@ -132,7 +113,7 @@ class TripleSec
     $keyMaterial = hex2bin(scrypt($key, $salt, static::SCRYPT_N, static::SCRYPT_R, static::SCRYPT_P, $totalSize));
     if (strlen($keyMaterial) != $totalSize)
     {
-      throw new RuntimeException('scrypt returned the wrong number of bytes');
+      throw new \RuntimeException('scrypt returned the wrong number of bytes');
     }
 
     $keys = [];
@@ -144,20 +125,33 @@ class TripleSec
     return $keys;
   }
 
-  public static function encrypt($plaintext, $initialKey)
+  public static function encrypt($plaintext, $initialKey, RngInterface $rng = null)
   {
-    $salt = static::getRandomBytes(static::SALT_LENGTH);
+    if ($rng === null)
+    {
+      $rng = new Rng();
+    }
+
+    $salt = $rng->getRandomBytes(static::SALT_LENGTH);
     $keys = static::getStretchedKeys($initialKey, $salt);
 
-    $header    = join('', array_map('chr', array_merge(static::MAGIC_BYTES, static::VERSION)));
-    $encrypted =
-      static::aesEncrypt(static::twofishEncrypt(static::xsalsa20Encrypt($plaintext, $keys['xsalsa20']), $keys['twofish']), $keys['aes']);
+    $ivs = [
+      'aes'      => $rng->getRandomBytes(static::AES_IV_SIZE),
+      'twofish'  => $rng->getRandomBytes(static::TWOFISH_IV_SIZE),
+      'xsalsa20' => $rng->getRandomBytes(static::XSALSA20_IV_SIZE),
+    ];
 
-    $toMac = $header . $salt . $encrypted;
+    $header = join('', array_map('chr', array_merge(static::MAGIC_BYTES, static::VERSION)));
+
+    $enc1 = static::xsalsa20Encrypt($plaintext, $keys['xsalsa20'], $ivs['xsalsa20']);
+    $enc2 = static::twofishEncrypt($enc1, $keys['twofish'], $ivs['twofish']);
+    $enc3 = static::aesEncrypt($enc2, $keys['aes'], $ivs['aes']);
+
+    $toMac = $header . $salt . $enc3;
     $mac1  = static::sha512hmac($toMac, $keys['sha512']);
     $mac2  = static::sha3hmac($toMac, $keys['sha3']);
 
-    return bin2hex($header . $salt . $mac1 . $mac2 . $encrypted);
+    return bin2hex($header . $salt . $mac1 . $mac2 . $enc3);
   }
 
   public static function decrypt($ciphertext, $initialKey)
